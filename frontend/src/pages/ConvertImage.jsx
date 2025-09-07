@@ -16,6 +16,9 @@ export default function ConvertImage(argument) {
 		const file = event.target.files[0];
 		if(!file) return;
 
+		const objectURL = URL.createObjectURL(file);
+
+    document.getElementById("image-preview").src = objectURL;
 		const reader = new FileReader();
 		reader.readAsArrayBuffer(file);
 
@@ -101,32 +104,17 @@ export default function ConvertImage(argument) {
 	return (
 		<PageLayout>
       		<NavBar />
-      		<div className="p-4 flex flex-col items-center" style={{border: "2px solid #ccc", borderRadius: "5px",padding: "25px",display: "grid", flexDirection: "column", alignItems: "center" }}>
+      		<div className="p-4 flex flex-col items-center">
             {cooldown > 0 && (
               <p style={{ color: "red", marginTop: "10px" }}>
                 Too many requests. Please wait {cooldown} seconds...
               </p>
             )}
-          <h3 className="text-xl font-bold mb-4" style={{color: "green"}}>Convert Image To PDF</h3>
-
-
+          <h2 className="text-xl font-bold mb-4" style={{color: "green"}}>Convert Image To PDF</h2>
           <div
-            // {/* key={idx}} */}
             className="relative p-3 border rounded-lg shadow-sm bg-white w-44 text-sm text-center"
           >
-            <iframe
-              // src={getPdfPreviewUrl(file)}
-              // title={file.name}
-              className="w-full h-10 mb-2 border"
-            />
-              <div style={{paddingBottom: "5px", display: "flex", flexDirection: "row",alignItems: "center",justifyContent: "center"}}>
-                <p className="truncate" style={{fontSize: "16px", color: "blue"}}>file.name</p>
-                <button
-                  style={{color: "red", backgroundColor: "#fff", fontWeight: "bold"}}
-                  // onClick={() => handleRemoveFile(idx)}
-                  className="absolute top-1 right-1 text-red-500 hover:text-red-700">X
-                </button>
-            </div>
+            <img id="image-preview" src="#" alt="" style={{border: '2px solid black', padding: "5px"}}/>
 
           </div>
 
@@ -137,7 +125,7 @@ export default function ConvertImage(argument) {
               accept=".png,.jpg,.jpeg"
               ref={fileInputRef}
               onChange={handleFileChange}
-              style={{color: "blue", fontSize: '14px'}}
+              style={{color: "blue", fontSize: '20px', backgroundColor: 'black'}}
               className="mb-4"/>
           </div>
           
