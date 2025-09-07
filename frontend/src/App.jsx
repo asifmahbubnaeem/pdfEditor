@@ -12,6 +12,7 @@ import RearrangePages from "./pages/RearrangePages";
 import DeletePages from "./pages/DeletePages";
 // import RotatePages from "./pages/RotatePages";
 import RotatePages from "./pages/Rotation";
+import CompressPdf from "./pages/CompressPdf";
 import DemoApp from "./pages/DemoApp";
 
 function App() {
@@ -29,6 +30,7 @@ function App() {
             <Route path="/rearrange-pages" element={<RearrangePages />} />
             <Route path="/delete-pages" element={<DeletePages />} />
             <Route path="/rotate-pages" element={<RotatePages />} />
+            <Route path="/compress-pdf" element={<CompressPdf />} />
             <Route path="/demo-app" element={<DemoApp />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/login" element={<Login />} />

@@ -11,6 +11,7 @@ const features = [
   { name: "rearrange pdf pages", path: "/rearrange-pages" },
   { name: "delete pdf Pages", path: "/delete-pages" },
   { name: "rotate/delete pdf pages", path: "/rotate-pages" },
+  { name: "compress pdf files", path: "/compress-pdf" },
   { name: "Demo Page", path: "/demo-app" },
 ];
 

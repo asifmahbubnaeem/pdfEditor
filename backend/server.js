@@ -140,6 +140,26 @@ function getDeletedPages(deletedPagesAsStr){
 }
 
 
+
+app.post("/api/compress-pdf", upload.single("file"), rateLimiter, async (req, res) => {
+
+  const inputPath = req.file.path;
+  const compress_quality = req.body.compress_quality;
+  const outputPath = `compressed_${Date.now()}.pdf`;
+
+  exec(`gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 -dPDFSETTINGS=/${compress_quality} -dNOPAUSE -dQUIET -dBATCH -sOutputFile=${outputPath} ${inputPath}`,
+
+    (err) => {
+        if(err) return res.status(500).json({error: "Compression failed."});
+
+        res.download(outputPath, () => {
+            fs.unlinkSync(inputPath);
+            fs.unlinkSync(outputPath);
+        });
+    });
+
+});
+
 function getNumericOrder(pageOrder){
   let arr = pageOrder.trim().split(',');
   const numArr=arr.map(Number);
