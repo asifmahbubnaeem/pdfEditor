@@ -1,0 +1,17 @@
+How to run fronend:
+
+cd frontend
+npm install
+npm run dev
+
+
+How to run backend:
+
+cd backend
+node server.js
+
+
+make sure following are installed in backend machine:
+
+ghostscript
+qpdf
