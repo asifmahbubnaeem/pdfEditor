@@ -331,10 +331,15 @@ app.post("/api/convert-img", upload.single("file"), rateLimiter, async(req, res)
     if (req.body.fileType === 'png')
       image = await pdfDoc.embedPng(imageBytes);
 
-    const imageDims = image.scale(1);
+    let scale_val = 1.0;
+    if(image.width>550 || image.height>800)
+    {
+        scale_val = 0.5;
+    }
+    const imageDims = image.scale(scale_val);
 
-    console.log("imageDim: w, h", imageDims.width, imageDims.height);
-    console.log("page: w, h", page.getWidth(), page.getHeight());
+    // console.log("imageDim: w, h", imageDims.width, imageDims.height);
+    // console.log("page: w, h", page.getWidth(), page.getHeight());
 
     page.drawImage(image, {
         x: page.getWidth() / 2 - imageDims.width / 2,
