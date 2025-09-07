@@ -13,6 +13,11 @@ export default function MergePdf() {
   // Add files without replacing the old ones
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
+    if(selectedFiles===null)
+    {
+      files = null;
+      return;
+    }
     const pdfFiles = selectedFiles.filter((file) =>
       file.name.toLowerCase().endsWith(".pdf")
     );
@@ -102,7 +107,7 @@ export default function MergePdf() {
         accept="application/pdf"
         multiple
         id="fileInput"
-        style={{padding: "10px", color: "blue"}}
+        style={{padding: "10px", color: "blue", fontWeight: 'bold', fontSize: '16px'}}
         onChange={handleFileChange}
         className="hidden"
       />
@@ -122,11 +127,11 @@ export default function MergePdf() {
             />
               <div style={{paddingBottom: "5px", display: "flex", flexDirection: "row",alignItems: "center",justifyContent: "center"}}>
                 {/* File Name */}
-                <p className="truncate" style={{fontSize: "16px", color: "blue"}}>{file.name}</p>
+                <p className="truncate" style={{fontSize: "16px", color: "blue", fontWeight: 'bold', border: '2px solid black', padding: '5px', backgroundColor:'#ccc', borderRadius: '3px'}}>{file.name}</p>
 
                 {/* Remove button */}
                 <button
-                  style={{color: "red", backgroundColor: "#fff", fontWeight: "bold"}}
+                  style={{color: "red", backgroundColor: "#ccc", fontWeight: "bold", marginLeft: '20px', border: '2px solid black'}}
                   onClick={() => handleRemoveFile(idx)}
                   className="absolute top-1 right-1 text-red-500 hover:text-red-700">X
                 </button>

@@ -197,11 +197,11 @@ export default function App() {
     <PageLayout>
       <NavBar />
         <div className="p-4 flex flex-col items-center" style={{border: "2px solid #000", borderRadius: "15px", padding: "10px"}}>
-          <h2 className="text-xl font-bold mb-2">Create a Password Protected PDF</h2>
+          <h2 className="text-xl font-bold mb-2" style={{color: 'green'}}>Create a Password Protected PDF</h2>
 
           
           <div>
-          <canvas ref={canvasRef} className="border rounded shadow" />
+          <canvas ref={canvasRef} className="border rounded shadow" style={{border: '1px solid black', padding: '5px', backgroundColor: '#ccc'}}/>
           {pdfDoc && (
             <div className="flex flex-col items-center gap-4 mt-4" style={{padding: "5px",display: "grid", flexDirection: "column", alignItems: "center" }}>
               <div className="flex items-center gap-4">
@@ -212,7 +212,7 @@ export default function App() {
                 >
                   Prev
                 </button>
-                <span>
+                <span style={{margin: '10px', fontWeight: 'bold'}}>
                   Page {pageNum} of {numPages}
                 </span>
                 <button
@@ -228,6 +228,7 @@ export default function App() {
           <div style={{alignItems: "center"}}>
             <input
               type="file"
+              style={{backgroundColor: '#ccc', fontSize: '16px', color: 'blue'}}
               accept="application/pdf"
               ref={fileInputRef}
               onChange={handleFileChange}
@@ -236,8 +237,9 @@ export default function App() {
           <div style={{padding: "10px" ,alignItems: "center"}}>
             <input
                   type="password"
-                  placeholder="Enter password"
+                  placeholder="password"
                   value={password}
+                  style={{border: '2px solid blue', padding: '10px', fontSize: '16px', color: '#333'}}
                   onChange={(e) => setPassword(e.target.value)}
                   className="border p-10 rounded w-64" style={{width: "50%"}}/>
           </div>
