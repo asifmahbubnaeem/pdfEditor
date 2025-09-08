@@ -8,6 +8,7 @@ npm run dev
 How to run backend:
 
 cd backend
+npm install
 node server.js
 
 
@@ -15,3 +16,4 @@ make sure following are installed in backend machine:
 
 ghostscript
 qpdf
+poppler --> brew install poppler
