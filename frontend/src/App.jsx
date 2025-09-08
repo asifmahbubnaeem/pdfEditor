@@ -10,7 +10,7 @@ import MergePdf from "./pages/MergePdf"
 import ConvertImage from "./pages/ConvertImage";
 import RearrangePages from "./pages/RearrangePages";
 import DeletePages from "./pages/DeletePages";
-// import RotatePages from "./pages/RotatePages";
+import ExtractImages from "./pages/ExtractImages";
 import RotatePages from "./pages/Rotation";
 import CompressPdf from "./pages/CompressPdf";
 import DemoApp from "./pages/DemoApp";
@@ -31,6 +31,7 @@ function App() {
             <Route path="/delete-pages" element={<DeletePages />} />
             <Route path="/rotate-pages" element={<RotatePages />} />
             <Route path="/compress-pdf" element={<CompressPdf />} />
+            <Route path="/extract-images" element={<ExtractImages />} />
             <Route path="/demo-app" element={<DemoApp />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/login" element={<Login />} />

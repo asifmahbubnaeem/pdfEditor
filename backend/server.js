@@ -10,6 +10,7 @@ import  fs from "fs";
 import  fsp from "fs/promises";
 import  https from "https";
 import { PDFDocument, degrees } from 'pdf-lib';
+import archiver from "archiver";
 // import { router } from './auth';
 
 const app = express();
@@ -140,6 +141,56 @@ function getDeletedPages(deletedPagesAsStr){
 }
 
 
+app.post("/api/extract-images", upload.single("file"), rateLimiter, async (req, res) => {
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No PDF uploaded" });
+    }
+
+    const pdfPath = req.file.path;
+    const outputDir = path.join("extracted", path.parse(req.file.originalname).name);
+
+    if (!fs.existsSync(outputDir))
+      fs.mkdirSync(outputDir, { recursive: true });
+
+    const cmd = `pdfimages -png "${pdfPath}" "${outputDir}/img"`;
+    exec(cmd, (err) => {
+      if(err){
+        console.error(err);
+        return res.status(500).json({message: "Error extracting images"});
+      }
+
+      const zipPath = `${outputDir}.zip`;
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip", { zlib: { level: 9 } });
+
+      output.on("close", () => {
+        res.download(zipPath, "images.zip", () => {
+          // Cleanup after download
+          fs.unlinkSync(pdfPath);
+          fs.rmSync(outputDir, { recursive: true, force: true });
+          fs.unlinkSync(zipPath);
+        });
+      });
+
+
+      archive.on("error", (err) => {
+        throw err;
+      });
+
+      archive.pipe(output);
+      archive.directory(outputDir, false);
+      archive.finalize();
+
+    });
+
+  }catch(err){
+      console.error("Image Extraction action error: ",err);
+      res.status(500).json({error: "Failed to extract image action."})
+  } 
+
+});
 
 app.post("/api/compress-pdf", upload.single("file"), rateLimiter, async (req, res) => {
 
