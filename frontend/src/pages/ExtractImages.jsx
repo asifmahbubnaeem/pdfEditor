@@ -17,14 +17,25 @@ export default function ExtractImages() {
   const [isEncrypting, setIsEncrypting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
+  const [status, setStatus] = useState("");
+  const [imageCount, setImageCount] = useState(0);
+  const [downloadUrl, setDownloadUrl] = useState("");
+  // const [file, setFile] = useState(null);
+
   const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
 
   const API_URL = import.meta.env.VITE_API_URL || "https://localhost:3000";
 
   const handleFileChange = async (event) => {
+
+
     const file = event.target.files[0];
     if (!file) return;
+    // setFile(event.target.files[0]);
+    setStatus("");
+    setImageCount(0);
+    setDownloadUrl("");
 
     const compression_button = document.getElementById("btn_cmpr");
     const reader = new FileReader();
@@ -150,6 +161,12 @@ export default function ExtractImages() {
     }
   };
 
+  const handleDownload = () => {
+    if (!downloadUrl) return;
+    window.location.href = downloadUrl; // trigger backend zip download
+    setImageCount(0);
+  };
+
   const handleExtractionImage = async () => {
     const file = fileInputRef.current.files[0];
     if (!file) {
@@ -164,21 +181,28 @@ export default function ExtractImages() {
     console.log("sent userId = ", userId)
 
     try {
+      setStatus("Extracting images...");
       const response = await fetch(`${API_URL}/api/extract-images`, {
         method: "POST",
         body: formData,
       });
 
+      const response_data = await response.json();
+
       if (!response.ok){
         if (response.status === 429) {
-          const data = await response.json();
-          HandleRateLimit(data);
+          HandleRateLimit(response_data);
           return;
         }
-       
-       throw new Error("Compression failed");
+       setStatus(response_data.error || "Failed to extract images");
+       // throw new Error("Compression failed");
      }
-      const blob = await response.blob();
+
+      setStatus(response_data.message);
+      setImageCount(response_data.imageCount);
+      setDownloadUrl(response_data.downloadUrl);
+     //download
+      /*const blob = await response.blob();
       const file = new File([blob], "extract-images.zip", { type: "application/zip" });
 
       const url = window.URL.createObjectURL(blob);
@@ -187,7 +211,7 @@ export default function ExtractImages() {
       a.download = "compressed.zip";
       document.body.appendChild(a);
       a.click();
-      a.remove();
+      a.remove();*/
 
     } catch (err) {
       console.error("Error:", err);
@@ -237,11 +261,24 @@ export default function ExtractImages() {
               className="mb-4"/>
           </div>
           {cooldown > 0 && (
-              <p style={{ color: "red", marginTop: "10px" }}>
+              <p style={{ color: "orange", marginTop: "10px", fontWeight: 'bold' }}>
                 Too many requests. Please wait {cooldown} seconds...
               </p>
             )}
-          <button id="btn_cmpr" style={{margin: '10px'}} onClick={handleExtractionImage}>Extract Images</button>
+          <button id="btn_cmpr" style={{margin: '10px'}} onClick={handleExtractionImage} disabled={cooldown>0}>Extract Images</button>
+          {status && <p className="mb-2" style={{color: 'green', fontWeight: 'bold'}}>{status}</p>}
+
+           {imageCount > 0 && (
+        <div className="flex flex-col items-center">
+          <p style={{color: 'green', fontWeight: 'bold'}}>{imageCount} images found.</p>
+          <button
+            onClick={handleDownload}
+            className="mt-2 px-4 py-2 bg-green-600 text-white rounded shadow"
+          >
+            Download Images (ZIP)
+          </button>
+        </div>
+      )}
         </div>
         </div>
     </PageLayout>

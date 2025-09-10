@@ -4,7 +4,7 @@ import express from "express";
 import path from "path";
 import multer from "multer";
 import cors from "cors";
-import { exec } from "child_process";
+import { exec , spawn } from "child_process";
 import Redis from "ioredis";
 import  fs from "fs";
 import  fsp from "fs/promises";
@@ -141,6 +141,26 @@ function getDeletedPages(deletedPagesAsStr){
 }
 
 
+app.get("/api/extract-images/download/:id", (req, res) => {
+  const zipPath = path.resolve(`extracted/${req.params.id}.zip`);
+
+  if (!fs.existsSync(zipPath)) {
+    return res.status(404).json({ error: "File not found" });
+  }
+
+  res.download(zipPath, "images.zip", (err) => {
+    if (err) console.error("Download error:", err);
+    try {
+      fs.rmSync(`uploads/${req.params.id}`, { force: true });
+      fs.rmSync(`extracted/${req.params.id}`, { recursive: true, force: true });
+      fs.rmSync(zipPath, { force: true });
+    } catch (cleanupErr) {
+      console.error("Cleanup error:", cleanupErr);
+    }
+  });
+});
+
+
 app.post("/api/extract-images", upload.single("file"), rateLimiter, async (req, res) => {
 
   try {
@@ -148,40 +168,46 @@ app.post("/api/extract-images", upload.single("file"), rateLimiter, async (req, 
       return res.status(400).json({ message: "No PDF uploaded" });
     }
 
-    const pdfPath = req.file.path;
-    const outputDir = path.join("extracted", path.parse(req.file.originalname).name);
+    const inputPath = path.resolve(req.file.path);
+    const outputDir = path.resolve("extracted", path.parse(req.file.filename).name);
 
     if (!fs.existsSync(outputDir))
       fs.mkdirSync(outputDir, { recursive: true });
 
-    const cmd = `pdfimages -png "${pdfPath}" "${outputDir}/img"`;
-    exec(cmd, (err) => {
-      if(err){
-        console.error(err);
-        return res.status(500).json({message: "Error extracting images"});
+    const process = spawn("pdfimages", [
+      "-png",
+      inputPath,
+      path.join(outputDir, "img"),
+    ]);
+
+    process.on("close", (code) => {
+      if (code !== 0) {
+        return res.status(500).json({ error: "Failed to extract images" });
       }
 
-      const zipPath = `${outputDir}.zip`;
+      const files = fs.readdirSync(outputDir).filter((f) => f.endsWith(".png"));
+
+      if (files.length === 0) {
+        return res.status(400).json({ error: "No images found in PDF" });
+      }
+
+      const zipPath = path.resolve(`${outputDir}.zip`);
       const output = fs.createWriteStream(zipPath);
       const archive = archiver("zip", { zlib: { level: 9 } });
 
+      archive.pipe(output);
+      files.forEach((file) => {
+        archive.file(path.join(outputDir, file), { name: file });
+      });
+      archive.finalize();
+
       output.on("close", () => {
-        res.download(zipPath, "images.zip", () => {
-          // Cleanup after download
-          fs.unlinkSync(pdfPath);
-          fs.rmSync(outputDir, { recursive: true, force: true });
-          fs.unlinkSync(zipPath);
+        res.json({
+          message: "Images extracted successfully",
+          imageCount: files.length,
+          downloadUrl: `/api/extract-images/download/${path.parse(req.file.filename).name}`,
         });
       });
-
-
-      archive.on("error", (err) => {
-        throw err;
-      });
-
-      archive.pipe(output);
-      archive.directory(outputDir, false);
-      archive.finalize();
 
     });
 
