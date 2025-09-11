@@ -11,6 +11,7 @@ import  fsp from "fs/promises";
 import  https from "https";
 import { PDFDocument, degrees } from 'pdf-lib';
 import archiver from "archiver";
+import convertRoutes from "./routes/convert.js";
 // import { router } from './auth';
 
 const app = express();
@@ -30,6 +31,7 @@ const uploadDoc = multer({
   },
 });
 
+app.use("/api", convertRoutes);
 
 const storage = multer.memoryStorage();
 const uploadToDelete = multer({storage: storage});

@@ -13,6 +13,7 @@ import DeletePages from "./pages/DeletePages";
 import ExtractImages from "./pages/ExtractImages";
 import RotatePages from "./pages/Rotation";
 import CompressPdf from "./pages/CompressPdf";
+import PdfToDocConvertion from "./pages/PdfToDoc";
 import DemoApp from "./pages/DemoApp";
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
             <Route path="/rotate-pages" element={<RotatePages />} />
             <Route path="/compress-pdf" element={<CompressPdf />} />
             <Route path="/extract-images" element={<ExtractImages />} />
+            <Route path="/pdf-2-docx" element={<PdfToDocConvertion />} />
             <Route path="/demo-app" element={<DemoApp />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/login" element={<Login />} />

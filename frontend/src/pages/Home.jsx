@@ -13,6 +13,7 @@ const features = [
   { name: "rotate/delete pdf pages", path: "/rotate-pages" },
   { name: "compress pdf files", path: "/compress-pdf" },
   { name: "extract images from pdf file", path: "/extract-images" },
+  { name: "convert pdf to docx", path: "/pdf-2-docx" },
   { name: "Demo Page", path: "/demo-app" },
 ];
 
