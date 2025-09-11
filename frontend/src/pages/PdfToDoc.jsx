@@ -92,6 +92,7 @@ export default function PdfToDocConvertion() {
 
   const HandleRateLimit = (data) =>{
           // alert(`Rate limit exceeded. Please wait ${data.retryAfter} seconds.`);
+      console.log("inside HandleRateLimit", data);
       setCooldown(data.retryAfter);
       let remaining = data.retryAfter;
       const interval = setInterval(() => {
@@ -116,7 +117,7 @@ export default function PdfToDocConvertion() {
       alert("Please upload a PDF.");
       return;
     }
-
+    console.log(cooldown);
     const formData = new FormData();
     const userId = generateUserId();
     formData.append("file", file);
@@ -130,21 +131,18 @@ export default function PdfToDocConvertion() {
         body: formData,
       });
 
-      // const response_data = await response.json();
-
       if (!response.ok){
+        setStatus("Convertion Failed.");
         if (response.status === 429) {
+          const response_data = await response.json();
           HandleRateLimit(response_data);
           return;
         }
        // setStatus(response_data.error || "Failed to convert from pdf to docx");
        // throw new Error("Compression failed");
      }
+     setStatus("Convertion successfully completed.");
 
-      // setStatus(response_data.message);
-      // setImageCount(response_data.imageCount);
-      // setDownloadUrl(response_data.downloadUrl);
-     //download
       const blob = await response.blob();
       // const file = new File([blob], "pdf2doc.docx", { type: "application/docx" });
 
@@ -210,18 +208,6 @@ export default function PdfToDocConvertion() {
             )}
           <button id="btn_cmpr" style={{margin: '10px'}} onClick={handlePdfToDocx} disabled={cooldown>0}>Convert To DOCX</button>
           {status && <p className="mb-2" style={{color: 'green', fontWeight: 'bold'}}>{status}</p>}
-
-           {imageCount > 0 && (
-        <div className="flex flex-col items-center">
-          <p style={{color: 'green', fontWeight: 'bold'}}>{imageCount} images found.</p>
-          <button
-            onClick={handleDownload}
-            className="mt-2 px-4 py-2 bg-green-600 text-white rounded shadow"
-          >
-            Download Images (ZIP)
-          </button>
-        </div>
-      )}
         </div>
         </div>
     </PageLayout>

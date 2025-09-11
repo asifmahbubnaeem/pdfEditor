@@ -253,7 +253,7 @@ export default function CompressPdf() {
                 Too many requests. Please wait {cooldown} seconds...
               </p>
             )}
-          <button id="btn_cmpr" style={{margin: '10px'}} onClick={handleCompression}>Compress</button>
+          <button id="btn_cmpr" style={{margin: '10px'}} onClick={handleCompression} disabled={cooldown>0}>Compress</button>
         </div>
         </div>
     </PageLayout>

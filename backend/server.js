@@ -164,7 +164,7 @@ app.get("/api/extract-images/download/:id", (req, res) => {
 });
 
 
-app.post("/api/convert-pdf-docx", upload.single("file"), rateLimiter, (req, res) => {
+app.post("/api/convert-pdf-docx", upload.single("file"), rateLimiter, async (req, res) => {
   const inputPath = req.file.path;
   const outputPath = path.join("docx_converted", `${Date.now()}.docx`);
   fs.mkdirSync("docx_converted", { recursive: true });
@@ -183,6 +183,8 @@ app.post("/api/convert-pdf-docx", upload.single("file"), rateLimiter, (req, res)
       fs.unlinkSync(inputPath);
       fs.unlinkSync(outputPath); // uncomment if you don’t want to keep docx
     });
+   
+
   });
 });
 
