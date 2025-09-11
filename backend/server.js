@@ -11,10 +11,11 @@ import  fsp from "fs/promises";
 import  https from "https";
 import { PDFDocument, degrees } from 'pdf-lib';
 import archiver from "archiver";
-import convertRoutes from "./routes/convert.js";
+// import convertRoutes from "./routes/convert.js";
 // import { router } from './auth';
 
 const app = express();
+const VENV = "/Users/Asif.Mahbub/myenv/bin/";
 const upload = multer({ dest: "uploads/" });
 const uploadDoc = multer({
   dest: "uploads/",
@@ -31,7 +32,7 @@ const uploadDoc = multer({
   },
 });
 
-app.use("/api", convertRoutes);
+// app.use("/api", convertRoutes);
 
 const storage = multer.memoryStorage();
 const uploadToDelete = multer({storage: storage});
@@ -162,6 +163,28 @@ app.get("/api/extract-images/download/:id", (req, res) => {
   });
 });
 
+
+app.post("/api/convert-pdf-docx", upload.single("file"), rateLimiter, (req, res) => {
+  const inputPath = req.file.path;
+  const outputPath = path.join("docx_converted", `${Date.now()}.docx`);
+  fs.mkdirSync("docx_converted", { recursive: true });
+
+  const command = `${VENV}python3 routes/convert_pdf_to_docx.py "${inputPath}" "${outputPath}"`;
+
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Conversion error: ${stderr}`);
+      return res.status(500).json({ error: "Conversion failed" });
+    }
+
+    res.download(outputPath, "converted.docx", (err) => {
+      if (err) console.error("Download error:", err);
+
+      fs.unlinkSync(inputPath);
+      fs.unlinkSync(outputPath); // uncomment if you don’t want to keep docx
+    });
+  });
+});
 
 app.post("/api/extract-images", upload.single("file"), rateLimiter, async (req, res) => {
 
