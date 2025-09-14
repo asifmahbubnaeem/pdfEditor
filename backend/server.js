@@ -188,6 +188,106 @@ app.post("/api/convert-pdf-docx", upload.single("file"), rateLimiter, async (req
   });
 });
 
+
+app.get("/api/extract-tables/download/:id", (req, res) => {
+  const zipPath = path.resolve(`table-extracted/${req.params.id}.zip`);
+
+  if (!fs.existsSync(zipPath)) {
+    return res.status(404).json({ error: "File not found" });
+  }
+
+  res.download(zipPath, "tables.zip", (err) => {
+    if (err) console.error("Download error:", err);
+    try {
+      fs.rmSync(`uploads/${req.params.id}`, { force: true });
+      fs.rmSync(`table-extracted/${req.params.id}`, { recursive: true, force: true });
+      fs.rmSync(zipPath, { force: true });
+    } catch (cleanupErr) {
+      console.error("Cleanup error:", cleanupErr);
+    }
+  });
+});
+
+app.post("/api/extract-tables", upload.single("file"), rateLimiter, async (req, res) => {
+  try{
+    if(!req.file){
+      return res.status(400).json({message: "No PDF uploaded."})
+    }
+
+    const inputPath = path.resolve(req.file.path);
+    const outputDir = path.resolve("table-extracted", path.parse(req.file.filename).name);
+
+    const convertionFormat = req.body.format;
+    const outputPath = path.join("extracted-table", `${Date.now()}.${convertionFormat}`);
+
+    
+
+    if(!fs.existsSync(outputDir))
+      fs.mkdirSync(outputDir, { recursive: true });
+
+    const pythonScript = 'routes/extract_tables_from_pdf.py';
+    // const args = [pythonScript, inputPath, outputDir, convertionFormat];
+    const args = ['routes/extract_tables_from_pdf.py', inputPath, outputDir, convertionFormat];
+
+    const command = `${VENV}python3 routes/extract_tables_from_pdf.py ${inputPath} ${outputDir} ${convertionFormat}`;
+    // console.log(command)
+    const process = spawn(`${VENV}python3`, args);
+
+    process.on("close", (code) => {
+      if (code !== 0) {
+        return res.status(500).json({ error: "Failed to extract tables" });
+      }
+
+      const files = fs.readdirSync(outputDir).filter((f) => f.endsWith(convertionFormat));
+
+      if (files.length === 0) {
+        return res.status(400).json({ error: "No Tables found in the PDF" });
+      }
+
+      const zipPath = path.resolve(`${outputDir}.zip`);
+      const output = fs.createWriteStream(zipPath);
+      const archive = archiver("zip", { zlib: { level: 9 } });
+
+      archive.pipe(output);
+      files.forEach((file) => {
+        archive.file(path.join(outputDir, file), { name: file });
+      });
+      archive.finalize();
+
+      output.on("close", () => {
+        res.json({
+          message: "Tables extracted successfully",
+          tablesCount: files.length,
+          downloadUrl: `/api/extract-tables/download/${path.parse(req.file.filename).name}`,
+        });
+      });
+    })
+
+
+    //exec start
+  //   exec(command, (error, stdout, stderr) => {
+  //   if (error) {
+  //     console.error(`Conversion error: ${stderr}`);
+  //     return res.status(500).json({ error: "Conversion failed" });
+  //   }
+
+  //   res.download(outputPath, `extracted.${convertionFormat}`, (err) => {
+  //     if (err) console.error("Download error:", err);
+
+  //     // fs.unlinkSync(inputPath);
+  //     // fs.unlinkSync(outputPath); // uncomment if you don’t want to keep docx
+  //   });
+  // });
+  //exec end
+
+
+  }catch(err){
+      console.error("Table Extraction action error: ",err);
+      res.status(500).json({error: "Failed to extract table action."})
+  }
+
+});
+
 app.post("/api/extract-images", upload.single("file"), rateLimiter, async (req, res) => {
 
   try {

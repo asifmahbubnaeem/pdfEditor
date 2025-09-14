@@ -1,20 +1,22 @@
 import React, { useState, useRef } from "react";
 import { GlobalWorkerOptions, getDocument } from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-// import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.js?url";
-
+import { generateUserId } from "../utils/Common"
 import PageLayout from "../components/PageLayout";
 import NavBar from "../components/NavBar";
 
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
-export default function App() {
+export default function ExtractTable() {
   const [pdfDoc, setPdfDoc] = useState(null);
   const [pageNum, setPageNum] = useState(1);
+  const [tableCount, setTableCount] = useState(0);
+  const [format, setFormat] = useState("csv");
   const [numPages, setNumPages] = useState(null);
-  const [password, setPassword] = useState("");
-  const [isEncrypting, setIsEncrypting] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+
+  const [status, setStatus] = useState("");
+  const [downloadUrl, setDownloadUrl] = useState("");
 
   const fileInputRef = useRef(null);
   const canvasRef = useRef(null);
@@ -24,6 +26,12 @@ export default function App() {
   const handleFileChange = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
+
+    setStatus("");
+    setTableCount(0);
+    setDownloadUrl("");
+
+    const compression_button = document.getElementById("btn_extract");
     const reader = new FileReader();
     reader.onload = async function () {
       const typedArray = new Uint8Array(this.result);
@@ -34,7 +42,7 @@ export default function App() {
         setNumPages(pdf.numPages);
         setPageNum(1);
         renderPage(1, pdf);
-        document.getElementById("encrypt_btn").disabled = (false || cooldown>0);
+        compression_button.disabled = (false || cooldown>0);
       }catch(err){
         const canvas = canvasRef.current;
         canvas.width = 0;
@@ -42,13 +50,21 @@ export default function App() {
         setPdfDoc(null);
         setNumPages(0);
         setPageNum(0);
-        document.getElementById("encrypt_btn").disabled =( true || cooldown>0);
-        console.log("inside exception pdf load");
+        compression_button.disabled =( true || cooldown>0);
+        console.log("inside exception pdf load", err);
       }
 
     };
     reader.readAsArrayBuffer(file);
   };
+
+
+  const handleDownload = () => {
+    if (!downloadUrl) return;
+    window.location.href = downloadUrl; // trigger backend zip download
+    setTableCount(0);
+  };
+
 
   const renderPage = async (num, pdf = pdfDoc) => {
     if (!pdf) return;
@@ -78,17 +94,6 @@ export default function App() {
   };
 
 
-  const generateUserId = () => {
-    if (!localStorage.getItem("userId")) {
-      localStorage.setItem("userId", crypto.randomUUID());
-    }
-    
-    const userId = localStorage.getItem("userId");
-
-    return userId;
-
-  }
-
   const HandleRateLimit = (data) =>{
           // alert(`Rate limit exceeded. Please wait ${data.retryAfter} seconds.`);
       setCooldown(data.retryAfter);
@@ -102,94 +107,45 @@ export default function App() {
       }, 1000);
   }
 
-
-  const handleEncrypt = async () => {
+  const handleTableExtraction = async () => {
     const file = fileInputRef.current.files[0];
-    if (!file) return alert("Upload PDF first!");
-    if (!password.trim()) return alert("Enter password!");
-
-    const formData = new FormData();
-    const userId = generateUserId();
-    formData.append("file", file);
-    formData.append("password", password);
-    formData.append("userId", userId);
-
-    try {
-      setIsEncrypting(true);
-      const response = await fetch(`${API_URL}/api/encrypt`, {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok){
-        
-        if (response.status === 429) {
-          const data = await response.json();
-          HandleRateLimit(data);
-          return;
-        }
-       
-       throw new Error("Encryption failed");
-     }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.name.replace(/\.pdf$/i, "-protected.pdf");
-      a.click();
-      window.URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error(err);
-      alert(err.message);
-    } finally {
-      setIsEncrypting(false);
-    }
-  };
-
-  const handleDecrypt = async () => {
-    const file = fileInputRef.current.files[0];
-    if (!file || !password) {
-      alert("Please upload a PDF and enter a password.");
+    if (!file) {
+      alert("Please upload a PDF.");
       return;
     }
 
     const formData = new FormData();
     const userId = generateUserId();
     formData.append("file", file);
-    formData.append("password", password);
     formData.append("userId", userId);
+    formData.append("format", format);
     console.log("sent userId = ", userId)
 
     try {
-      const response = await fetch(`${API_URL}/api/decrypt`, {
+      setStatus(`Extracting tables in ${format} format...`);
+      const response = await fetch(`${API_URL}/api/extract-tables`, {
         method: "POST",
         body: formData,
       });
 
+      const response_data = await response.json();
       if (!response.ok){
         if (response.status === 429) {
-          const data = await response.json();
-          HandleRateLimit(data);
+          HandleRateLimit(response_data);
           return;
         }
-       
-       throw new Error("Decryption failed");
+       setStatus(response_data.error || "Failed to extract tables");
+       setTableCount(0);
+       throw new Error("Extraction failed");
      }
-      const blob = await response.blob();
-      const file = new File([blob], "decrypted.pdf", { type: "application/pdf" });
 
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "decrypted.pdf";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+    setStatus(response_data.message);
+    setTableCount(response_data.tablesCount);
+    setDownloadUrl(response_data.downloadUrl);
 
     } catch (err) {
       console.error("Error:", err);
-      alert("Error decrypting PDF (maybe wrong password?)");
+      alert("Error extracting tables");
     }
   };
 
@@ -197,7 +153,7 @@ export default function App() {
     <PageLayout>
       <NavBar />
         <div className="p-4 flex flex-col items-center" style={{border: "2px solid #000", borderRadius: "15px", padding: "10px"}}>
-          <h2 className="text-xl font-bold mb-2" style={{color: 'green'}}>Create a Password Protected PDF</h2>
+          <h2 className="text-xl font-bold mb-2" style={{color: 'green'}}>Extract Tables from PDF Files</h2>
 
           
           <div>
@@ -223,42 +179,49 @@ export default function App() {
                   Next
                 </button>
               </div>
+              <p style={{fontWeight: ''}}>Please select the output file format</p>
+              <select 
+                style={{padding: '5px', backgroundColor: '#ccc', color: '#000', border: '1px solid black', borderRadius: '3px', fontSize: '14px'}}
+                value={format} 
+                onChange={(e) => setFormat(e.target.value)}>
+                <option value="csv">csv</option>
+                <option value="html">html</option>
+                <option value="json">json</option>
+                <option value="pdf">pdf</option>
+                <option value="xlsx">excel</option>
+                <option value="txt">text</option>
+                <option value="xml">xml</option>
+              </select>
             </div>
           )}
           <div style={{alignItems: "center"}}>
             <input
               type="file"
-              style={{backgroundColor: '#ccc', fontSize: '16px', color: 'blue'}}
+              style={{backgroundColor: '#ccc', fontSize: '16px', color: 'blue', border: '2px solid black'}}
               accept="application/pdf"
               ref={fileInputRef}
               onChange={handleFileChange}
               className="mb-4"/>
           </div>
-          <div style={{padding: "10px" ,alignItems: "center"}}>
-            <input
-                  type="password"
-                  placeholder="password"
-                  value={password}
-                  style={{border: '2px solid blue', padding: '10px', fontSize: '16px', color: '#333', width: "50%"}}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="border p-10 rounded w-64"/>
-          </div>
-          <div>
-            <button id="encrypt_btn"
-                    style={{color: '#fff', backgroundColor: '#333', borderRadius: '10px'}}
-                    onClick={handleEncrypt}
-                    disabled={isEncrypting || cooldown>0}
-                    className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50">
-                    {isEncrypting ? "Encrypting…" : "Create a password protected PDF"}
-            </button>
-        </div>
           {cooldown > 0 && (
               <p style={{ color: "red", marginTop: "10px" }}>
                 Too many requests. Please wait {cooldown} seconds...
               </p>
             )}
-
+          <button id="btn_extract" style={{margin: '10px'}} onClick={handleTableExtraction} disabled={cooldown>0}>Extract Tables</button>
+          {status && <p className="mb-2" style={{color: 'green', fontWeight: 'bold'}}>{status}</p>}
         </div>
+        {tableCount > 0 && (
+        <div className="flex flex-col items-center">
+          <p style={{color: 'green', fontWeight: 'bold'}}>{tableCount} tables found.</p>
+          <button
+            onClick={handleDownload}
+            className="mt-2 px-4 py-2 bg-green-600 text-white rounded shadow"
+          >
+            Download Tables (ZIP)
+          </button>
+        </div>
+      )}
         </div>
     </PageLayout>
   );

@@ -14,6 +14,7 @@ import ExtractImages from "./pages/ExtractImages";
 import RotatePages from "./pages/Rotation";
 import CompressPdf from "./pages/CompressPdf";
 import PdfToDocConvertion from "./pages/PdfToDoc";
+import ExtractTable from "./pages/ExtractTableFromPdf";
 import DemoApp from "./pages/DemoApp";
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
             <Route path="/compress-pdf" element={<CompressPdf />} />
             <Route path="/extract-images" element={<ExtractImages />} />
             <Route path="/pdf-2-docx" element={<PdfToDocConvertion />} />
+            <Route path="/extract-tables" element={<ExtractTable />} />
             <Route path="/demo-app" element={<DemoApp />} />
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/login" element={<Login />} />
