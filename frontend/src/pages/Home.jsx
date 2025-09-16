@@ -15,6 +15,7 @@ const features = [
   { name: "extract images from pdf file", path: "/extract-images" },
   { name: "convert pdf to docx", path: "/pdf-2-docx" },
   { name: "extract tables from pdf", path: "/extract-tables" },
+  { name: "csv to pdf", path: "/csv-to-pdf" },
   { name: "Demo Page", path: "/demo-app" },
 ];
 

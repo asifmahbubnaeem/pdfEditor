@@ -11,6 +11,8 @@ import  fsp from "fs/promises";
 import  https from "https";
 import { PDFDocument, degrees } from 'pdf-lib';
 import archiver from "archiver";
+import csv from "csv-parser";
+import PdfPrinter from "pdfmake";
 // import convertRoutes from "./routes/convert.js";
 // import { router } from './auth';
 
@@ -36,8 +38,6 @@ const uploadDoc = multer({
 
 const storage = multer.memoryStorage();
 const uploadToDelete = multer({storage: storage});
-
-
 const redis = new Redis(); // default: 127.0.0.1:6379
 
 const CLEANUP_TIME = 600000
@@ -60,6 +60,15 @@ app.use(express.json());
 
 const RATE_LIMIT = 5;       
 const WINDOW_SEC = 60;
+
+const fonts = {
+    Roboto: {
+      normal: "fonts/Roboto-Regular.ttf",
+      bold: "fonts/Roboto-Medium.ttf",
+      italics: "fonts/Roboto-Italic.ttf",
+      bolditalics: "fonts/Roboto-MediumItalic.ttf",
+    },
+  };
 
 const rateLimiter = async (req, res, next) => {
   try {
@@ -263,30 +272,187 @@ app.post("/api/extract-tables", upload.single("file"), rateLimiter, async (req, 
       });
     })
 
-
-    //exec start
-  //   exec(command, (error, stdout, stderr) => {
-  //   if (error) {
-  //     console.error(`Conversion error: ${stderr}`);
-  //     return res.status(500).json({ error: "Conversion failed" });
-  //   }
-
-  //   res.download(outputPath, `extracted.${convertionFormat}`, (err) => {
-  //     if (err) console.error("Download error:", err);
-
-  //     // fs.unlinkSync(inputPath);
-  //     // fs.unlinkSync(outputPath); // uncomment if you don’t want to keep docx
-  //   });
-  // });
-  //exec end
-
-
   }catch(err){
       console.error("Table Extraction action error: ",err);
       res.status(500).json({error: "Failed to extract table action."})
   }
 
 });
+
+
+function csvToPdf(inputCsv, outputPdf) {
+
+  const printer = new PdfPrinter(fonts);
+
+  const rows = [];
+
+  try{
+      fs.createReadStream(inputCsv)
+        .pipe(csv())
+        .on("data", (row) => rows.push(row))
+        .on("end", () => {
+          const headers = Object.keys(rows[0]);
+          const body = [headers, ...rows.map((r) => headers.map((h) => r[h]))];
+
+          const docDefinition = {
+            content: [
+              { text: "CSV to PDF", style: "header" },
+              {
+                table: {
+                  headerRows: 1,
+                  widths: headers.map(() => "*"), // auto width
+                  body,
+                },
+              },
+            ],
+            styles: {
+              header: { fontSize: 18, bold: true, margin: [0, 0, 0, 10] },
+            },
+          };
+          const pdfDoc = printer.createPdfKitDocument(docDefinition);
+          pdfDoc.pipe(fs.createWriteStream(outputPdf));
+          pdfDoc.end();
+        });
+      }catch(err){
+        console.error("Failed inside csvToPdf function: ",err);
+        res.status(500).json({error: "Failed inside csvToPdf function."})
+      }
+  }
+
+
+function csvToArray(filePath) {
+  return new Promise((resolve, reject) => {
+    const results = [];
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on("data", (data) => results.push(data))
+      .on("end", () => {
+        const headers = Object.keys(results[0]);
+        const rows = results.map((row) => headers.map((h) => row[h] || ""));
+        resolve([headers, ...rows]);
+      })
+      .on("error", reject);
+  });
+}
+
+function computeColumnWidths(tableData){
+    const colCount = tableData[0].length;
+  const colWidths = [];
+
+  for (let col = 0; col < colCount; col++) {
+    let maxLen = 0;
+    for (let row = 0; row < tableData.length; row++) {
+      const cell = String(tableData[row][col] || "");
+      if (cell.length > maxLen) maxLen = cell.length;
+    }
+
+    // Each char ~ 4 points wide, min 40, max 200
+    const width = Math.min(Math.max(maxLen * 4, 40), 200);
+    colWidths.push(width);
+  }
+
+  return colWidths;
+}
+
+
+const csvToPdf2 = (inputCsv, outputPdf) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const printer = new PdfPrinter(fonts);
+      const csvArray = await csvToArray(inputCsv);
+      const colWidths = computeColumnWidths(csvArray);
+
+      const docDefinition = {
+        pageOrientation: "landscape",
+        content: [
+          {
+            table: {
+              headerRows: 1,
+              widths: colWidths,
+              body: csvArray,
+            },
+            layout: {
+              fillColor: (rowIndex) => (rowIndex === 0 ? "#eeeeee" : null),
+            },
+          },
+        ],
+        defaultStyle: {
+          fontSize: 8,
+          noWrap: false,
+        },
+      };
+
+      const pdfDoc = printer.createPdfKitDocument(docDefinition);
+      const stream = fs.createWriteStream(outputPdf);
+
+      pdfDoc.pipe(stream);
+      pdfDoc.end();
+
+      stream.on("finish", () => resolve(outputPdf));
+      stream.on("error", (err) => reject(err));
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
+
+app.get("/api/csv-to-pdf/download/:id", (req, res) => {
+  const zipPath = path.resolve(`csv-to-pdf/${req.params.id}.zip`);
+
+  if (!fs.existsSync(zipPath)) {
+    return res.status(404).json({ error: "File not found" });
+  }
+
+  res.download(zipPath, "Files.zip", (err) => {
+    if (err) console.error("Download error:", err);
+    try {
+      fs.rmSync(`uploads/${req.params.id}`, { force: true });
+      fs.rmSync(`csv-to-pdf/${req.params.id}`, { recursive: true, force: true });
+      fs.rmSync(zipPath, { force: true });
+    } catch (cleanupErr) {
+      console.error("Cleanup error:", cleanupErr);
+    }
+  });
+});
+
+
+app.post("/api/csv-to-pdf", upload.single("file"), rateLimiter, async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No CSV uploaded" });
+    }
+
+    const inputPath = path.resolve(req.file.path);
+    const outputDir = path.resolve("csv-to-pdf", path.parse(req.file.filename).name);
+
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir, { recursive: true });
+    }
+
+    const outputPdfPath = `${outputDir}/newPdf.pdf`;
+    await csvToPdf2(inputPath, outputPdfPath);  // ✅ wait until PDF is written
+
+    // Create ZIP
+    const zipPath = path.resolve(`${outputDir}.zip`);
+    const output = fs.createWriteStream(zipPath);
+    const archive = archiver("zip", { zlib: { level: 9 } });
+
+    archive.pipe(output);
+    archive.file(outputPdfPath, { name: "newPdf.pdf" });
+    await archive.finalize();
+
+    res.json({
+      message: "CSV file converted to PDF successfully",
+      downloadUrl: `/api/csv-to-pdf/download/${path.parse(req.file.filename).name}`,
+    });
+
+  } catch (err) {
+    console.error("CSV to PDF conversion error: ", err);
+    res.status(500).json({ error: "Failed to convert from CSV to PDF." });
+  }
+});
+
 
 app.post("/api/extract-images", upload.single("file"), rateLimiter, async (req, res) => {
 
