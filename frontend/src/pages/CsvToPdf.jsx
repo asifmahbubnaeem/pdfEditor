@@ -129,6 +129,7 @@ export default function CsvToPdf() {
       if (!response.ok){
         if (response.status === 429) {
           HandleRateLimit(response_data);
+          setStatus("");
           return;
         }
        setStatus(response_data.error || "Failed to convert from csv to pdf");
