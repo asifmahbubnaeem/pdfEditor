@@ -37,7 +37,7 @@ export default function Home() {
                 className="p-6 bg-white shadow-md rounded-xl border hover:shadow-lg 
                            flex justify-center items-center text-lg font-medium text-red-900"
               >
-                <div style={{ border: "2px solid #000", padding: "10px", borderRadius: "10px", cursor: "pointer",  alignItems: "center", justifyContent: "center", color: "black", backgroundColor: "#eee", fontStyle: 'normal'}}>
+                <div style={{ border: "2px solid #000", paddingLeft: "3px",paddingRight: "3px", borderRadius: "10px", cursor: "pointer",  alignItems: "center", justifyContent: "center", color: "black", backgroundColor: "#eee", fontStyle: 'normal'}}>
                 {f.name}</div>
               </Link>
             ))}

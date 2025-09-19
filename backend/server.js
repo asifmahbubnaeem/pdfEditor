@@ -242,6 +242,14 @@ app.post("/api/extract-tables", upload.single("file"), rateLimiter, async (req, 
     // console.log(command)
     const process = spawn(`${VENV}python3`, args);
 
+    process.stdout.on('data', (data) => {
+      console.log(`Print statement from python script=${pythonScript} : ${data.toString()}`)
+    });
+
+    process.stderr.on('data', (data) => {
+      console.log(`Error statement from python script=${pythonScript} : ${data.toString()}`);
+    });
+
     process.on("close", (code) => {
       if (code !== 0) {
         return res.status(500).json({ error: "Failed to extract tables" });

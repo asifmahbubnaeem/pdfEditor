@@ -6,27 +6,102 @@ import json
 import pandas as pd
 import xml.etree.ElementTree as ET
 from csv2pdf import convert
+import pdfplumber
+from pdf2image import convert_from_path
+import pytesseract
+import fitz
+import os
 
+
+
+def is_scanned(pdf_path):
+    doc = fitz.open(pdf_path)
+    for page in doc:
+        text = page.get_text().strip()
+        if text:
+            return False
+    return True
+
+
+def autofix(table):
+    max_cols = max(len(row) for row in table if row)  # detect max columns
+    fixed_table = []
+    for row in table:
+        if not row:
+            continue
+        tmp_row = [item if item is not None else '' for item in row]
+        fixed_row = tmp_row + [""] * (max_cols - len(tmp_row))
+        fixed_table.append(fixed_row)
+    return fixed_table
+
+def replaceNoneOrEmpty(data:list):
+    if data is None:
+        return data
+    row = [f"Empty_val_{idx}" if not item else item for idx,item in enumerate(data)]
+    return row
 
 
 def replaceSpecialChars(dList:list):
-    chars_to_replace=[' ', '/', '\\' ]
-    replacement_char = '_'
-    output=[]
-    for item in dList:
 
-        translation_table = str.maketrans(''.join(chars_to_replace), replacement_char * len(chars_to_replace))
-        tmp = item.translate(translation_table)
-        output.append(tmp)
-    return output
+    try:
+        chars_to_replace=[' ', '/', '\\','\n' ]
+        replacement_char = '_'
+        output=[]
+        for item in dList:
+
+            translation_table = str.maketrans(''.join(chars_to_replace), replacement_char * len(chars_to_replace))
+            tmp = item.translate(translation_table)
+            output.append(tmp)
+        return replaceNoneOrEmpty(output)
+    except TypeError as te:
+        print(f"Type error occurred as: {te}")
+    except Exception as e:
+        print(f"Error is: {e}")
 
 
-def extract_table(pdf_file):
-    cv = Converter(pdf_file)
-    tables = cv.extract_tables()
-    cv.close()
+def extract_table(input_pdf):
+    tables=[]
+
+    if not is_scanned(input_pdf):
+        # DIGITAL PDF
+        print("not scanned")
+        with pdfplumber.open(input_pdf) as pdf:
+            for i, page in enumerate(pdf.pages):
+                # Extract text
+                # text = page.extract_text() or ""
+                # Extract tables
+                tbls = page.extract_tables(
+                    {
+                        "vertical_strategy": "lines",      # use detected vertical lines
+                        "horizontal_strategy": "lines",    # use detected horizontal lines
+                        "snap_tolerance": 3,               # reduce merging errors
+                        "join_tolerance": 3,
+                        "edge_min_length": 3,
+                    })
+                for j, table in enumerate(tbls):
+                    fixed_table = autofix(table)
+                    print(fixed_table)
+                    tables.append(fixed_table)
+
+    else:
+        # SCANNED PDF
+        print("its scanned")
+        pages = convert_from_path(input_pdf, dpi=500)
+        text_out = []
+        for i, page in enumerate(pages):
+            text = pytesseract.image_to_string(page, lang="eng")
+            text_out.append(text)
+
+        # Table detection (basic OCR bounding boxes)
+        for i, page in enumerate(pages):
+            data = pytesseract.image_to_data(page, output_type=pytesseract.Output.DATAFRAME)
+            tables.append(data)
 
     return tables
+    # cv = Converter(pdf_file)
+    # tables = cv.extract_tables()
+    # cv.close()
+    # return tables
 
 def convert_to_csv(data, outputPath):
     table_names=[]
@@ -47,7 +122,7 @@ def convert_to_text(data, outputPath):
         separator=','
         stringify_str = ""
         for row in tmp:
-            stringify_str += separator.join(row)
+            stringify_str += separator.join(str(row))
         with open(f"{outputPath}/table_{i+1}.txt", "w") as f:
             f.write(''.join(stringify_str))
         
@@ -65,7 +140,7 @@ def formHTMLRow(tableRow):
     tmp_str = ""
     rows = ""
     for item in tableRow:
-        tmp_str = "<td>"+item+"</td>"
+        tmp_str = "<td>"+str(item)+"</td>"
         rows +=tmp_str
     return start_str+rows+end_str
 
@@ -86,15 +161,18 @@ def convert_to_html(data, outputPath):
 
 
 def convert_to_json(data, outputPath):
+    print("convert to json")
     for i,table in enumerate(data):
         tmp = copy.deepcopy(table)
         header = tmp[0]
+        tmp_header = [f"Empty_header_{index}" if not item else item for index,item in enumerate(header)]
+        header = tmp_header
         rows = tmp[1:]
         list_of_dicts = [dict(zip(header, row)) for row in rows]
 
+    with open(f"{outputPath}/table_{i+1}.json", mode='w', encoding='utf-8') as f:
+        json.dump(list_of_dicts, f, indent=4)
 
-        with open(f"{outputPath}/table_{i+1}.json", mode='w', encoding='utf-8') as f:
-            json.dump(list_of_dicts, f, indent=4)
 
 
 def convert_to_excel(data, outputPath):
