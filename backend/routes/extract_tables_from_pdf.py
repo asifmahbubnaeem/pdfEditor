@@ -80,7 +80,7 @@ def extract_table(input_pdf):
                     })
                 for j, table in enumerate(tbls):
                     fixed_table = autofix(table)
-                    print(fixed_table)
+                    # print(fixed_table)
                     tables.append(fixed_table)
 
     else:
@@ -98,10 +98,6 @@ def extract_table(input_pdf):
             tables.append(data)
 
     return tables
-    # cv = Converter(pdf_file)
-    # tables = cv.extract_tables()
-    # cv.close()
-    # return tables
 
 def convert_to_csv(data, outputPath):
     table_names=[]
@@ -146,6 +142,7 @@ def formHTMLRow(tableRow):
 
 
 def convert_to_html(data, outputPath):
+    print("convert to html")
     for i,table in enumerate(data):
         tmp = copy.deepcopy(table)
         table_start="<table>"
@@ -161,7 +158,6 @@ def convert_to_html(data, outputPath):
 
 
 def convert_to_json(data, outputPath):
-    print("convert to json")
     for i,table in enumerate(data):
         tmp = copy.deepcopy(table)
         header = tmp[0]
